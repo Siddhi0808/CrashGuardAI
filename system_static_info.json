@@ -1,0 +1,31 @@
+{
+    "system_info": {
+        "hostname": "Siddhi's-MacbookAir.local",
+        "os_name": "Darwin",
+        "os_version": "Darwin Kernel Version 25.3.0: Wed Jan 28 20:54:55 PST 2026; root:xnu-12377.91.3~2/RELEASE_ARM64_T8132",
+        "release": "25.3.0",
+        "architecture": "arm64",
+        "kernel_version": "macOS-26.3.1-arm64-arm-64bit-Mach-O",
+        "boot_time": "2026-03-13 19:39:04",
+        "uptime": "52d 14h 37m"
+    },
+    "cpu_details": {
+        "cpu_model": "arm",
+        "physical_cores": 10,
+        "logical_cores": 10,
+        "current_freq": "N/A (Locked on Apple Silicon)",
+        "temperature": "45\u00b0C"
+    },
+    "memory_details": {
+        "total_ram": "16.0 GB",
+        "available_ram": "5.78 GB",
+        "used_ram": "7.55 GB",
+        "swap_total": "2.0 GB",
+        "swap_used": "0.84 GB"
+    },
+    "disk_details": {
+        "total_disk": "460.43 GB",
+        "used_disk": "389.16 GB",
+        "free_disk": "71.27 GB"
+    }
+}

@@ -1,0 +1,23 @@
+{
+    "total_usage": 24.5,
+    "user": 15.5,
+    "system": 5.9,
+    "idle": 78.5,
+    "iowait": 0.0,
+    "frequency": "0.00 GHz",
+    "cores": [
+        41.4,
+        33.7,
+        23.5,
+        14.9,
+        9.5,
+        8.9,
+        43.5,
+        25.0,
+        32.3,
+        13.4
+    ],
+    "ctx_switches": 7424,
+    "interrupts": 196108,
+    "temperature": "48\u00b0C"
+}

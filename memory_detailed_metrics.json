@@ -1,0 +1,18 @@
+{
+    "total": "16.0 GB",
+    "used": "6.88 GB",
+    "free": "0.1 GB",
+    "available": "3.99 GB",
+    "cached": "0.0 GB",
+    "buffers": "0.0 GB",
+    "swap_total": "1.0 GB",
+    "swap_used": "0.15 GB",
+    "swap_percent": 14.6,
+    "percent": 75.1,
+    "composition": {
+        "used": 7390904320,
+        "cached": 0,
+        "buffers": 0,
+        "free": 105578496
+    }
+}

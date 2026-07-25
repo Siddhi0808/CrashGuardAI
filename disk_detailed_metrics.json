@@ -1,0 +1,34 @@
+{
+    "total": "460.43 GB",
+    "used": "12.58 GB",
+    "free": "291.85 GB",
+    "percent": 4.1,
+    "read_rate": 0.3,
+    "write_rate": 0.03,
+    "partitions": [
+        {
+            "device": "/dev/disk3s1s1",
+            "mount": "/",
+            "filesystem": "apfs",
+            "used": "12.58 GB",
+            "free": "291.85 GB",
+            "percent": 4.1
+        },
+        {
+            "device": "/dev/disk3s6",
+            "mount": "/System/Volumes/VM",
+            "filesystem": "apfs",
+            "used": "1.0 GB",
+            "free": "291.85 GB",
+            "percent": 0.3
+        },
+        {
+            "device": "/dev/disk3s2",
+            "mount": "/System/Volumes/Preboot",
+            "filesystem": "apfs",
+            "used": "16.74 GB",
+            "free": "291.85 GB",
+            "percent": 5.4
+        }
+    ]
+}
