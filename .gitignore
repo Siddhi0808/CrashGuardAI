@@ -69,3 +69,5 @@ models/
 *.h5
 *.bin
 *.safetensors
+
+crash/
