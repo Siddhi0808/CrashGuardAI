@@ -6,12 +6,17 @@
 DROP TABLE IF EXISTS system_feature_windows CASCADE;
 DROP TABLE IF EXISTS model_training_features CASCADE;
 DROP TABLE IF EXISTS system_events CASCADE;
+DROP TABLE IF EXISTS anomaly_history CASCADE;
 
 DROP TABLE IF EXISTS cpu_metrics CASCADE;
 DROP TABLE IF EXISTS memory_metrics CASCADE;
 DROP TABLE IF EXISTS disk_metrics CASCADE;
 DROP TABLE IF EXISTS network_metrics CASCADE;
 DROP TABLE IF EXISTS system_runtime_info CASCADE;
+DROP TABLE IF EXISTS network_interfaces CASCADE;
+DROP TABLE IF EXISTS disk_devices CASCADE;
+DROP TABLE IF EXISTS cpu_details CASCADE;
+DROP TABLE IF EXISTS hosts CASCADE;
 
 -------------------------------------------------------------
 -- CPU Metrics
@@ -256,4 +261,68 @@ CREATE TABLE system_events (
 
     description TEXT
 
+);
+
+-------------------------------------------------------------
+-- Host Information & Static Hardware Metadata
+-------------------------------------------------------------
+
+CREATE TABLE hosts (
+    host_id SERIAL PRIMARY KEY,
+    hostname VARCHAR(255) NOT NULL,
+    machine_type VARCHAR(100),
+    os_name VARCHAR(100),
+    os_version TEXT,
+    kernel_version VARCHAR(100),
+    architecture VARCHAR(50),
+    cpu_model VARCHAR(255),
+    total_ram_bytes BIGINT,
+    total_disk_bytes BIGINT,
+    physical_cores INT,
+    logical_cores INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE cpu_details (
+    id SERIAL PRIMARY KEY,
+    host_id INT REFERENCES hosts(host_id) ON DELETE CASCADE,
+    cpu_model VARCHAR(255),
+    physical_cores INT,
+    logical_cores INT,
+    freq_current_mhz DOUBLE PRECISION,
+    freq_min_mhz DOUBLE PRECISION,
+    freq_max_mhz DOUBLE PRECISION,
+    collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE disk_devices (
+    id SERIAL PRIMARY KEY,
+    host_id INT REFERENCES hosts(host_id) ON DELETE CASCADE,
+    device_name VARCHAR(255),
+    mountpoint VARCHAR(255),
+    filesystem_type VARCHAR(100),
+    total_bytes BIGINT,
+    collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE network_interfaces (
+    id SERIAL PRIMARY KEY,
+    host_id INT REFERENCES hosts(host_id) ON DELETE CASCADE,
+    interface_name VARCHAR(100),
+    mac_address VARCHAR(100),
+    speed_mbps DOUBLE PRECISION,
+    status VARCHAR(50),
+    collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-------------------------------------------------------------
+-- Anomaly Detection History
+-------------------------------------------------------------
+
+CREATE TABLE anomaly_history (
+    id SERIAL PRIMARY KEY,
+    host_id INT DEFAULT 1,
+    detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    anomaly BOOLEAN NOT NULL,
+    score DOUBLE PRECISION NOT NULL
 );

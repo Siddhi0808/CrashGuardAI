@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 
 from sklearn.preprocessing import StandardScaler
@@ -32,6 +33,7 @@ from model_utils import (
 
 print("Loading training dataset...")
 
+df = None
 conn = None
 
 try:
@@ -45,12 +47,25 @@ try:
     """
 
     df = pd.read_sql(query, conn)
+    print(f"Loaded {len(df)} samples from database ({WINDOW_TABLE}).")
+
+except Exception as e:
+    print(f"Database connection unavailable ({e}). Checking local dataset.csv...")
 
 finally:
     if conn:
         conn.close()
 
-print(f"Loaded {len(df)} samples.")
+if df is None or df.empty:
+    csv_path = "dataset.csv"
+    if os.path.exists(csv_path):
+        print(f"Loading dataset directly from {csv_path}...")
+        df = pd.read_csv(csv_path)
+        print(f"Loaded {len(df)} samples from {csv_path}.")
+    else:
+        raise FileNotFoundError(
+            f"Neither database table '{WINDOW_TABLE}' nor '{csv_path}' was found."
+        )
 
 
 # ==========================================================
@@ -84,50 +99,51 @@ if y.nunique() < 2:
 
 
 # ==========================================================
-# Standardization
+# Train Test Split (Temporal Chronological Split)
 # ==========================================================
 
-print("\nTraining StandardScaler...")
+print("\nPartitioning dataset (Chronological 80/20 Temporal Split)...")
+
+split_idx = int(len(df) * 0.80)
+X_train, X_test = X.iloc[:split_idx], X.iloc[split_idx:]
+y_train, y_test = y.iloc[:split_idx], y.iloc[split_idx:]
+
+print(f"Training samples : {len(X_train)} (Past observations)")
+print(f"Test samples     : {len(X_test)} (Future unseen observations)")
+
+
+# ==========================================================
+# Standardization (Fit ONLY on Train to Prevent Data Leakage)
+# ==========================================================
+
+print("\nTraining StandardScaler on training partition...")
 
 scaler = StandardScaler()
-
-X_scaled = scaler.fit_transform(X)
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
 
 save_scaler(scaler)
 
-print("✓ Scaler trained")
+print("✓ Scaler trained (leakage-free)")
 
 
 # ==========================================================
-# Isolation Forest
+# Isolation Forest (Unsupervised Anomaly Detection)
 # ==========================================================
 
 print("\nTraining Isolation Forest...")
 
 iso = IsolationForest(
-    n_estimators=300,
-    contamination=0.02,
+    n_estimators=200,
+    contamination=0.08,
     random_state=42
 )
 
-iso.fit(X_scaled)
+iso.fit(X_train_scaled)
 
 save_isolation_forest(iso)
 
 print("✓ Isolation Forest trained")
-
-
-# ==========================================================
-# Train Test Split
-# ==========================================================
-
-X_train, X_test, y_train, y_test = train_test_split(
-    X_scaled,
-    y,
-    test_size=0.20,
-    stratify=y,
-    random_state=42
-)
 
 
 # ==========================================================
@@ -137,12 +153,10 @@ X_train, X_test, y_train, y_test = train_test_split(
 negative = (y_train == 0).sum()
 positive = (y_train == 1).sum()
 
-if positive == 0:
-    scale_weight = 1.0
-else:
-    scale_weight = negative / positive
+# Calibrated positive weight to balance precision and recall realistically
+scale_weight = min(4.0, max(1.5, (negative / max(1, positive)) * 0.45))
 
-print(f"\nScale Positive Weight : {scale_weight:.2f}")
+print(f"\nCalibrated Scale Positive Weight : {scale_weight:.2f}")
 
 
 # ==========================================================
@@ -154,9 +168,9 @@ print("\nTraining XGBoost...")
 xgb = XGBClassifier(
     objective="binary:logistic",
     eval_metric="logloss",
-    n_estimators=300,
-    learning_rate=0.05,
-    max_depth=5,
+    n_estimators=150,
+    learning_rate=0.06,
+    max_depth=4,
     subsample=0.8,
     colsample_bytree=0.8,
     random_state=42,
@@ -164,7 +178,7 @@ xgb = XGBClassifier(
 )
 
 xgb.fit(
-    X_train,
+    X_train_scaled,
     y_train
 )
 
@@ -177,10 +191,10 @@ print("✓ XGBoost trained")
 # Evaluation
 # ==========================================================
 
-print("\nEvaluating...\n")
+print("\nEvaluating on Unseen Temporal Test Split...\n")
 
-predictions = xgb.predict(X_test)
-probabilities = xgb.predict_proba(X_test)[:, 1]
+predictions = xgb.predict(X_test_scaled)
+probabilities = xgb.predict_proba(X_test_scaled)[:, 1]
 
 print(classification_report(
     y_test,

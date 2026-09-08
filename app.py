@@ -140,4 +140,6 @@ def get_metrics():
     })
 
 if __name__ == '__main__':
-    app.run(debug=True, host='127.0.0.1', port=5001)
+    host = os.getenv('HOST', '0.0.0.0')
+    port = int(os.getenv('PORT', 5001))
+    app.run(debug=True, host=host, port=port)

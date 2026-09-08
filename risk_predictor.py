@@ -134,7 +134,7 @@ class RiskPredictor:
                 4
             ),
 
-            "anomaly_flag": anomaly_prediction == -1
+            "anomaly_flag": bool(anomaly_prediction == -1)
 
         }
 

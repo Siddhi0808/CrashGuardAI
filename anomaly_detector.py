@@ -1,33 +1,24 @@
 import json
 import time
-import joblib
 import pandas as pd
 
+from config import FEATURE_COLUMNS, WINDOW_TABLE
 from db import get_connection
+from model_utils import load_isolation_forest, load_scaler
+
 # Load trained model and scaler
-model = joblib.load("isolation_forest.pkl")
-scaler = joblib.load("scaler.pkl")
+model = load_isolation_forest()
+scaler = load_scaler()
 
 while True:
 
     conn = get_connection()
 
-    query = """
+    query = f"""
     SELECT
-        host_id,
-        cpu_usage,
-        memory_usage,
-        disk_usage,
-        network_in,
-        network_out,
-        process_count,
-        running_processes,
-        thread_count,
-        load_1,
-        load_5,
-        load_15
-    FROM model_training_features
-    ORDER BY collected_at DESC
+        {",".join(FEATURE_COLUMNS)}
+    FROM {WINDOW_TABLE}
+    ORDER BY end_time DESC
     LIMIT 1
     """
 
@@ -38,14 +29,10 @@ while True:
         time.sleep(5)
         continue
 
-    # Save host_id separately
-    host_id = int(df["host_id"].iloc[0])
-
-    # Drop host_id before prediction
-    X = df.drop(columns=["host_id"])
+    host_id = 1
 
     # Scale features
-    X_scaled = scaler.transform(X)
+    X_scaled = scaler.transform(df)
 
     # Predict
     prediction = model.predict(X_scaled)[0]
