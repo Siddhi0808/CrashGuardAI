@@ -16,7 +16,7 @@ services:
       - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./data/database.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-siddhijain} -d ${DB_NAME:-system_monitoring}"]
       interval: 5s
@@ -43,9 +43,9 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-Siddhi12}
       PORT: 5000
     ports:
-      - "5000:5000"
+      - "${APP_PORT:-5000}:5000"
     volumes:
-      - ./dataset.csv:/app/dataset.csv
+      - ./data/dataset.csv:/app/data/dataset.csv
       - ./models:/app/models
     depends_on:
       db:

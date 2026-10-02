@@ -130,52 +130,71 @@ Servers and personal machines rarely crash without warning signs — CPU spikes,
 ```
 ai-based-system-monitoring/
 │
-├── app.py                        # Flask app: dashboard route + /api/metrics live telemetry endpoint
-├── config.py                     # DB config, feature column list, model paths, alert thresholds
-├── db.py                         # PostgreSQL connection + query execution helpers
+├── core/                         # Core configurations & shared database utilities
+│   ├── config.py                 # Centralized configuration & alert thresholds
+│   └── db.py                     # PostgreSQL connection management & helpers
 │
-├── static_collector.py           # One-time host/CPU/disk/network hardware inventory
-├── system_info_collector.py      # Snapshot of OS/CPU/memory/disk info to JSON
-├── cpu_collector.py               # Continuous CPU metrics collector
-├── memory_collector.py           # Continuous memory/swap metrics collector
-├── disk_collector.py             # Continuous disk usage + I/O rate collector
-├── network_collector.py          # Continuous network throughput collector
-├── process_collector.py          # Continuous process/thread state collector
+├── collectors/                   # Low-level system telemetry collectors (psutil)
+│   ├── cpu_collector.py          # Continuous CPU metrics collector
+│   ├── memory_collector.py       # Continuous memory/swap metrics collector
+│   ├── disk_collector.py         # Continuous disk usage + I/O rate collector
+│   ├── network_collector.py      # Continuous network throughput collector
+│   ├── process_collector.py      # Continuous process/thread state collector
+│   ├── static_collector.py       # One-time host/hardware inventory to PostgreSQL
+│   └── system_info_collector.py  # Static host info snapshot
 │
-├── feature_builder.py            # Merges latest per-resource metrics into one feature row
-├── feature_scheduler.py          # Runs feature_builder.py on a fixed interval
-├── window_builder.py             # Builds rolling statistical windows for ML input
-├── label_windows.py              # Labels windows as crash-precursors from crash events
-├── export_dataset.py             # Exports labeled windows to dataset.csv
+├── pipeline/                     # Data engineering & rolling feature windows
+│   ├── feature_builder.py        # Merges latest per-resource metrics into one feature row
+│   ├── feature_scheduler.py      # Runs feature_builder.py on a fixed interval
+│   ├── window_builder.py         # Builds rolling statistical windows (60 samples)
+│   ├── label_windows.py          # Labels windows as crash-precursors from crash events
+│   └── export_dataset.py         # Exports labeled windows to data/dataset.csv
 │
-├── train_model.py                # Trains StandardScaler, IsolationForest, and XGBoost
-├── model_utils.py                # Save/load helpers + in-memory cache for trained models
-├── risk_predictor.py             # Loads models and computes live crash-risk predictions
-├── anomaly_detector.py           # Standalone real-time anomaly-scoring loop
-├── alert_manager.py              # Converts predictions into NORMAL/WARNING/CRITICAL alerts
+├── ml/                           # Machine learning models, training & inference
+│   ├── train_model.py            # Trains StandardScaler, IsolationForest, and XGBoost
+│   ├── model_utils.py            # Save/load helpers & in-memory cache for models
+│   ├── risk_predictor.py         # Live crash-risk & anomaly prediction engine
+│   ├── anomaly_detector.py       # Standalone real-time Isolation Forest scoring loop
+│   └── alert_manager.py          # Rule-based NORMAL/WARNING/CRITICAL alert generator
 │
-├── models/                       # Persisted trained models
+├── web/                          # Full-stack web dashboard & API
+│   ├── app.py                    # Flask application serving dashboard & live ML API
+│   ├── templates/
+│   │   └── dashboard.html        # Multi-tab dashboard UI
+│   └── static/
+│       ├── css/style.css         # Dashboard styling
+│       └── js/app.js, charts.js  # Frontend telemetry fetcher & Chart.js renderer
+│
+├── stress_tests/                 # Controlled system stress & crash simulation scripts
+│   ├── cpu_stress.py             # CPU saturation test
+│   ├── memory_stress.py          # Memory leak simulator
+│   ├── disk_stress.py            # Disk exhaustion simulator
+│   ├── process_stress.py         # Fork-bomb process simulator
+│   └── thread_stress.py          # Thread exhaustion simulator
+│
+├── scripts/                      # Offline dataset expansion & physical telemetry tools
+│   ├── collect_live_physical_data.py
+│   ├── expand_real_dataset.py
+│   ├── apply_realistic_system_dynamics.py
+│   ├── restore_and_label_real_dataset.py
+│   └── run_live_data_campaign.py
+│
+├── models/                       # Persisted trained model artifacts (.pkl)
 │   ├── scaler.pkl
 │   ├── isolation_forest.pkl
 │   └── xgboost.pkl
 │
-├── database.sql                  # PostgreSQL schema (all tables + indexes)
-├── dataset.csv                   # Exported labeled feature-window dataset (340 rows)
+├── data/                         # Datasets, schemas & runtime cache
+│   ├── dataset.csv               # Cleaned & labeled feature-window dataset
+│   ├── database.sql              # PostgreSQL schema (tables & indexes)
+│   └── runtime/                  # Ephemeral metrics snapshots (*.json)
 │
-├── *_detailed_metrics.json       # Latest snapshot written by each collector (CPU/mem/disk/network/process)
-├── system_static_info.json       # Latest static host info snapshot
-├── anomaly_results.json          # Latest anomaly-detector output
-│
-├── templates/
-│   └── dashboard.html            # Multi-tab dashboard UI (Overview/CPU/Memory/Disk/Network/Processes/Cleanup)
-│
-├── static/
-│   ├── css/style.css             # Dashboard styling
-│   ├── js/app.js                 # Fetches /api/metrics, updates cards & cleanup suggestions
-│   ├── js/charts.js              # Chart.js graph setup
-│   └── images/                   # Logo/background assets
-│
-├── requirements.txt
+├── app.py                        # Root launcher forwarding to web/app.py
+├── train_model.py                # Root launcher forwarding to ml/train_model.py
+├── start.sh                      # Local startup script
+├── Dockerfile                    # Containerization specification
+├── docker-compose.yml            # Multi-container orchestration (App + PostgreSQL)
+├── requirements.txt              # Python package dependencies
 └── README.md
 ```
 
@@ -201,9 +220,9 @@ ai-based-system-monitoring/
 | **Dataset generation** | Built from real collected telemetry, rolled into 60-sample statistical windows and labeled by proximity to recorded crash events (`label_windows.py`) |
 | **Feature engineering** | 29 engineered features per window — average/max/min/std/range/variance/trend for CPU, memory, disk, and process metrics, plus average/std for network in/out, and process/thread averages (full list in `config.py → FEATURE_COLUMNS`) |
 | **Preprocessing** | `StandardScaler` fit on the training features and reused at inference time |
-| **Models trained** | 1) `IsolationForest` (300 estimators, 2% contamination) for unsupervised anomaly detection 2) `XGBClassifier` (300 estimators, max depth 5, learning rate 0.05) for supervised crash-probability prediction, with `scale_pos_weight` computed automatically to handle class imbalance |
-| **Prediction output** | Crash probability (0–1), discrete risk level (LOW/MEDIUM/HIGH/CRITICAL), prediction confidence, Isolation Forest anomaly score and anomaly flag |
-| **Current dataset stage** | **51,262 rows of 100% genuine physical system telemetry** (44,725 normal / 6,537 physical stress & crash precursors) recorded directly from physical hardware sensors via `psutil`. Includes multi-phase real stress regimes (CPU starvation, physical RAM pressure, and thread contention) with zero synthetic data. |
+| **Models trained** | 1) `IsolationForest` (200 estimators, 8% contamination) for unsupervised anomaly detection 2) `XGBClassifier` (150 estimators, max depth 4, learning rate 0.06, subsample 0.8, colsample_bytree 0.8) for supervised crash-probability prediction, with `scale_pos_weight = clamp(0.45 × neg/pos, 1.5, 4.0)` to handle class imbalance (3.23 on the current dataset) |
+| **Prediction output** | Crash probability (0–1), discrete risk level (LOW/MEDIUM/HIGH/CRITICAL), a margin score `|p − 0.5| × 2` (not a calibrated confidence), Isolation Forest anomaly score and anomaly flag |
+| **Current dataset stage** | **51,262 feature windows** (45,106 normal / 6,156 stress precursors, 12.0% positive) in `data/dataset.csv`. Built from ~17K windows of real `psutil` telemetry recorded on a Mac during labeled sessions (idle, multitasking, CPU starvation, memory pressure, thread storms), then **augmented**: 3× linear interpolation (`scripts/expand_real_dataset.py`), 2% Gaussian sensor jitter, and random label flips to model boundary ambiguity (`scripts/apply_realistic_system_dynamics.py`). |
 
 ---
 
@@ -228,7 +247,7 @@ If you prefer running natively on your host machine:
 chmod +x start.sh
 ./start.sh
 ```
-This automatically selects your virtual environment (`aibsv`), verifies trained models, and starts the dashboard on **http://localhost:5000**.
+This automatically selects your virtual environment (`.venv`, `venv`, or `aibsv`), trains models if they are missing, and starts the dashboard on **http://localhost:5001** (override with `PORT`).
 
 ---
 
@@ -258,13 +277,13 @@ Credentials can be configured via environment variables (`DB_HOST`, `DB_PORT`, `
 ```bash
 python3 train_model.py
 ```
-Trains the `StandardScaler`, `IsolationForest`, and `XGBClassifier` on the 51,262 real physical telemetry rows in `dataset.csv` and saves model artifacts to `models/`.
+Trains the `StandardScaler`, `IsolationForest`, and `XGBClassifier` and saves model artifacts to `models/`. The script reads `system_feature_windows` from PostgreSQL if it is reachable and only falls back to `data/dataset.csv` (51,262 windows) when the database is unavailable. To train on the CSV while Postgres is running, point the connection elsewhere, e.g. `DB_PORT=1 python3 train_model.py`.
 
 #### 5. Launch the Dashboard
 ```bash
 python3 app.py
 ```
-Open **http://localhost:5000** to view live system vitals, heuristic crash risk, and process inspection.
+Open **http://localhost:5001** to view live system vitals, the blended crash-risk score, and process inspection.
 
 ---
 
@@ -305,7 +324,7 @@ python3 collect_live_physical_data.py --step 2 --label 0 --tag "daily_work"
 
 ## 📊 Model Evaluation & Benchmark Performance
 
-Evaluated on **10,253 unseen physical test windows** using a strict **Chronological 80/20 Temporal Split** (trained on past observations, tested on future observations with zero data leakage):
+Reproduced on 2026-10-02 by running `python3 train_model.py` against `data/dataset.csv` (51,262 windows). Evaluated on the last **10,253 windows** using a positional **80/20 split** of the time-ordered CSV (the scaler is fit on the training portion only):
 
 ### 1. Test Set Classification Report
 ```
@@ -319,27 +338,24 @@ Evaluated on **10,253 unseen physical test windows** using a strict **Chronologi
 weighted avg       0.92      0.91      0.92     10253
 ```
 
-- **Test Accuracy**: **91%**
+- **Crash-class recall**: **0.75** (858 of 1,137 stress-precursor windows caught)
+- **Crash-class precision**: **0.57** (640 false alarms)
 - **Test ROC-AUC**: **0.9426**
-- **Confusion Matrix**:
-  - True Negatives: **8,476** (correctly identified safe operations)
-  - True Positives: **858** (correctly identified crash precursors in advance)
-  - False Positives: **640** (heavy benign workloads like compilation that triggered precautionary warnings)
-  - False Negatives: **279** (subtle early-stage leaks)
+- **Accuracy**: 0.91. Note that predicting "normal" for every window would already score ~0.89 on this test set, so recall, precision and AUC are the meaningful numbers.
+- **Confusion Matrix**: TN **8,476** · FP **640** · FN **279** · TP **858**
 
-### 2. Why These Metrics Are Believable & Production-Grade
-In production system observability (Datadog, AWS CloudWatch, Prometheus), models with 99.9% accuracy are a sign of synthetic toy data or circular target leakage. Real systems have noisy metrics, overlapping boundaries, and benign spikes:
-- **75% Recall on Crashes**: Catches 3 out of every 4 impending system failure states before a freeze occurs.
-- **Realistic False Alarms (Precision 57%)**: Captures real-world ambiguity where intensive benign tasks (video encoding, multi-threaded builds) generate heavy compute pressure without crashing.
-- **Zero Temporal Spillover**: Scalers are fitted strictly on past training windows, and test evaluation is strictly out-of-time.
+### 2. Caveats
+- **Labels are stress-session labels, not recorded crashes.** A positive means "a window recorded during a CPU, memory or thread stress session"; no actual system crash was captured.
+- **Augmentation affects the evaluation.** Interpolated rows are blends of their neighbours, and consecutive windows share up to 58 of 60 samples, so rows near the train/test boundary are not fully independent. The random label flips added for ambiguity also put a ceiling on achievable precision and recall.
+- **Raw database pipeline results are much weaker.** Training the same configuration on the 17,285 windows collected through the PostgreSQL pipeline (only 97 positives) gives ROC-AUC 0.82 and catches 0 of 34 test positives; that path needs far more labeled positive data.
+- **Thresholds are not tuned or calibrated.** The report uses XGBoost's default 0.5 cut-off, and `scale_pos_weight` shifts probabilities upward.
 
-### 2. Top Physical Features Learned by XGBoost
-The model does not rely on superficial counter drift — its decisions are driven by physical failure physics:
-1. `cpu_max` (**25.3%** importance) — detects pinned runaway execution loops and core starvation.
-2. `thread_avg` (**14.4%** importance) — detects thread scheduler queue storms and context switch congestion.
-3. `memory_trend` (**7.7%** importance) — detects continuous upward slope during memory leaks before OOM occurs.
-4. `memory_max` (**7.1%** importance) — detects physical RAM ceiling saturation.
-5. `cpu_avg` (**5.4%** importance) — detects sustained compute stress.
+### 3. Top Features Learned by XGBoost (gain-based `feature_importances_`)
+1. `cpu_max` (**24.0%**): pinned runaway loops and core starvation
+2. `thread_avg` (**14.5%**): thread-storm sessions
+3. `memory_max` (**13.3%**): RAM ceiling saturation
+4. `running_process_avg` (**8.2%**): run-queue pressure
+5. `memory_trend` (**7.8%**): upward memory slope during leaks
 
 ---
 
@@ -347,16 +363,15 @@ The model does not rely on superficial counter drift — its decisions are drive
 
 ### 1. Eliminating Target Leakage (The Data Engineering Challenge)
 In early iterations, labels were defined via deterministic threshold rules (e.g. `cpu_max >= 75%`). Because those same features were fed into XGBoost, the model trivialized the problem to an artificial `0.9999` ROC-AUC by memorizing threshold cut-offs.  
-**Production Solution:** Ground-truth labels were decoupled from feature formulas and anchored to **independent physical stress test regimes** (live CPU burns, physical RAM allocations, and thread storms). This produced an honest, production-validated **0.9956 ROC-AUC**.
+**Fix:** Labels were decoupled from feature formulas and assigned per recorded stress session (`scripts/run_live_data_campaign.py --label`), so the model can no longer read the label straight off a threshold. On the current dataset this gives the **0.9426 ROC-AUC** reported above.
 
-### 2. Low-Overhead Observability Architecture
-Monitoring tools must never degrade the systems they monitor. CrashGuard AI minimizes telemetry overhead by:
-- **Decoupled Sampling**: Decoupling 1-second metric sampling from 2-second window aggregation.
-- **In-Memory Circular Buffers**: Using $O(1)$ constant-time `collections.deque(maxlen=60)` buffers to prevent heap fragmentation.
-- **Async Model Inference**: Separating the live Flask UI polling from ML inference batches.
+### 2. Low-Overhead Telemetry
+- **Bounded in-memory window**: the dashboard keeps the last 60 samples in a `collections.deque(maxlen=60)` (O(1) append with automatic eviction), so live feature computation needs no database round trip.
+- **Decoupled sampling (dataset collector)**: `scripts/collect_live_physical_data.py` samples every 1 s and emits a window every 2 s.
+- Inference currently runs synchronously inside the `/api/metrics` request; moving sampling and inference to a background worker is on the roadmap.
 
-### 3. Distributed Scale-Out Architecture (Scaling to 1,000+ Nodes)
-To transition from single-node monitoring to an enterprise distributed fleet:
+### 3. Proposed Scale-Out Architecture (design only, not implemented)
+To move from single-node monitoring to a distributed fleet:
 
 ```
 [Host Agent 1] (psutil collector) ──┐
@@ -369,7 +384,7 @@ To transition from single-node monitoring to an enterprise distributed fleet:
                                        ┌───────────────┴───────────────┐
                                        ▼                               ▼
                            [TimescaleDB / InfluxDB]        [Inference Service (Triton)]
-                           (Partitioned Time-Series)       (XGBoost < 2ms crash score)
+                           (Partitioned Time-Series)       (batched XGBoost scoring)
                                        │                               │
                                        └───────────────┬───────────────┘
                                                        ▼
@@ -383,9 +398,9 @@ To transition from single-node monitoring to an enterprise distributed fleet:
 Use these concrete talking points when presenting CrashGuard AI to Tier-1 interviewers:
 
 1. **How do you handle class imbalance in system monitoring?**
-   > *"In production systems, crashes represent less than 15% of total operating time. We addressed this using automatic positive class weight scaling (`scale_pos_weight = negative / positive`) inside XGBoost's objective loss, and stratified test splits to prevent sample bias."*
+   > *"Stress precursors are 12% of the windows. I up-weight the positive class with a clamped `scale_pos_weight = clamp(0.45 × negative / positive, 1.5, 4.0)` (3.23 here), evaluate on recall, precision and ROC-AUC instead of accuracy, and use a time-ordered split rather than a random one."*
 2. **Why XGBoost over an LSTM or Deep Learning?**
-   > *"For 60-step rolling window features (trend, variance, max, min), XGBoost delivers sub-2ms inference latency, lower cold-start footprint, zero GPU dependency, and full feature interpretability via tree gain, which is essential for SRE auditability."*
+   > *"The inputs are 29 tabular aggregates of a 60-sample window (trend, variance, max, min), and the dataset is small. Gradient-boosted trees fit that shape well, train in seconds on a CPU, need no GPU, and expose feature importance, which matters for explaining an alert."*
 3. **What was your biggest engineering challenge on this project?**
    > *"Diagnosing and resolving target leakage. Initial models appeared to have near-perfect accuracy because labels were generated via deterministic rule thresholds. I restructured the data campaign to ground labels on independent physical workload experiments, ensuring the model learned true causal failure indicators."*
 

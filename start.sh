@@ -13,10 +13,15 @@ echo "🛡️  CrashGuard AI - System Monitoring Platform"
 echo "=========================================================="
 
 # 1. Check Python virtual environment
-VENV_DIR="./aibsv"
-if [ -d "$VENV_DIR" ]; then
-    PYTHON_EXEC="$VENV_DIR/bin/python"
-    echo "✓ Using virtual environment: $VENV_DIR"
+if [ -d "./.venv" ]; then
+    PYTHON_EXEC="./.venv/bin/python"
+    echo "✓ Using virtual environment: ./.venv"
+elif [ -d "./venv" ]; then
+    PYTHON_EXEC="./venv/bin/python"
+    echo "✓ Using virtual environment: ./venv"
+elif [ -d "./aibsv" ]; then
+    PYTHON_EXEC="./aibsv/bin/python"
+    echo "✓ Using virtual environment: ./aibsv"
 else
     PYTHON_EXEC="python3"
     echo "⚠️ Virtual environment not found, falling back to system python3"

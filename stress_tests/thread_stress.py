@@ -1,0 +1,13 @@
+import sys, os
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
+import threading
+
+def worker():
+    while True:
+        pass
+
+while True:
+    threading.Thread(target=worker).start()
