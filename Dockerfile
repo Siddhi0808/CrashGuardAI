@@ -11,6 +11,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Install system runtime & build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
+    libc6-dev \
     libpq-dev \
     curl \
     procps \
