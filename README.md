@@ -233,7 +233,13 @@ Run the entire stack — PostgreSQL database, schema initialization, ML models, 
 ```bash
 docker compose up --build -d
 ```
-Then open **http://localhost:5000** in your browser. To view logs or stop:
+Then open **http://localhost:5000** in your browser. If ports 5000 or 5432 are already taken (on macOS, AirPlay Receiver uses 5000; a local Postgres uses 5432), override the host ports:
+```bash
+APP_PORT=5050 DB_PORT=5433 docker compose up --build -d
+```
+Note: on macOS and Windows, Docker runs inside a Linux VM, so the containerized dashboard reports the VM's CPU, memory and processes, not the host's. To monitor the Mac itself, run `./start.sh` natively.
+
+To view logs or stop:
 ```bash
 docker compose logs -f app
 docker compose down
