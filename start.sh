@@ -28,7 +28,7 @@ else
 fi
 
 # 2. Check trained models
-if [ ! -f "models/xgboost.pkl" ] || [ ! -f "models/scaler.pkl" ]; then
+if [ ! -f "models/xgboost.pkl" ] || [ ! -f "models/scaler.pkl" ] || [ ! -f "models/isolation_forest.pkl" ]; then
     echo "⏳ Training models on dataset.csv..."
     "$PYTHON_EXEC" train_model.py
 else

@@ -1,3 +1,11 @@
+"""
+Feature snapshot builder.
+
+Merges the latest row from each collector table (cpu, memory, disk, network,
+runtime) into one row of model_training_features, using a single
+INSERT ... SELECT so the merge happens inside PostgreSQL.
+"""
+
 import sys, os
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
@@ -10,6 +18,15 @@ except ImportError:
 
 
 def build_training_features(host_id=1):
+    """
+    Insert one consolidated feature row for `host_id`.
+
+    Network values are cumulative byte counters since boot, not per-second rates.
+
+    Returns True on success, False if any collector table has no rows yet
+    (the five single-row subqueries are cross-joined, so one empty table
+    yields zero rows) or if the query fails.
+    """
 
     conn = None
     cur = None

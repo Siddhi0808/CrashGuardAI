@@ -9,4 +9,6 @@ from web.app import app
 if __name__ == "__main__":
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", 5001))
-    app.run(debug=True, host=host, port=port)
+    # Debug mode exposes the Werkzeug debugger; enable only locally with FLASK_DEBUG=1
+    debug = os.getenv("FLASK_DEBUG", "0") == "1"
+    app.run(debug=debug, host=host, port=port)

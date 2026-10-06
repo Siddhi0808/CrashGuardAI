@@ -1,3 +1,9 @@
+"""
+Disk collector: every 2 s, records usage of the root volume and read/write
+throughput (MB/s, from I/O counter deltas over the measured elapsed time) to
+data/runtime/disk_detailed_metrics.json and the disk_metrics table.
+"""
+
 import sys, os
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:

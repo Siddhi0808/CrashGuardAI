@@ -1,5 +1,7 @@
+// Chart.js instances, created once by initCharts() and updated by app.js on every poll
 let overviewChart, cpuChart, memoryDoughnutChart, diskChart, networkChart;
 
+// Create all dashboard charts; a chart is skipped if its canvas is not on the page
 function initCharts() {
     const defaultScales = {
         y: { beginAtZero: true, ticks: { color: '#94a3b8' } },
@@ -92,6 +94,8 @@ function initCharts() {
     }
 }
 
+// Append one point per dataset, keeping a rolling window of the last 12 points
+// (about 24 seconds at the 2-second poll interval)
 function pushChartData(chart, label, values) {
     if (!chart) return;
     if (chart.data.labels.length >= 12) {

@@ -1,3 +1,10 @@
+"""
+Network collector: measures traffic over a 1 s interval, then sleeps 2 s.
+Stores cumulative byte counters and per-interval rates (MB per second) in the
+network_metrics table, plus per-interface details in
+data/runtime/network_detailed_metrics.json.
+"""
+
 import sys, os
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
@@ -37,6 +44,7 @@ def collect_network_details():
 
         try:
 
+            # Two counter reads 1 s apart give the bytes transferred in that second
             net_before = psutil.net_io_counters()
 
             time.sleep(1)

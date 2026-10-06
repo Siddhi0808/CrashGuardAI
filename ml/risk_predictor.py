@@ -1,3 +1,12 @@
+"""
+Crash-risk inference.
+
+RiskPredictor loads the three trained artifacts (scaler, Isolation Forest,
+XGBoost) and turns one 29-feature window into a crash probability, a risk
+level, a margin score and an anomaly flag. A module-level singleton
+(`predictor`) is shared by the web app and the alert manager.
+"""
+
 import sys, os
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
@@ -29,8 +38,10 @@ except ImportError:
 
 
 class RiskPredictor:
+    """Wraps the scaler + Isolation Forest + XGBoost pipeline for live scoring."""
 
     def __init__(self, eager_load=True):
+        # eager_load=False defers disk access until the first prediction
         self.scaler = None
         self.isolation_forest = None
         self.xgboost = None
@@ -53,6 +64,7 @@ class RiskPredictor:
 
     @property
     def is_ready(self):
+        """True when all three models are loaded; tries to load them lazily if not."""
         if self.scaler is None or self.isolation_forest is None or self.xgboost is None:
             return self.load_models()
         return True
@@ -84,6 +96,7 @@ class RiskPredictor:
                     pass
 
     def get_risk_level(self, probability):
+        """Map a crash probability (0-1) to LOW / MEDIUM / HIGH / CRITICAL."""
         if probability >= 0.90:
             return "CRITICAL"
         elif probability >= 0.70:
@@ -93,6 +106,12 @@ class RiskPredictor:
         return "LOW"
 
     def get_confidence(self, probability):
+        """
+        Distance from the 0.5 decision boundary, scaled to 0-1.
+
+        This is a margin score, not a calibrated confidence: p=0.5 -> 0.0,
+        p=0.0 or p=1.0 -> 1.0.
+        """
         confidence = abs(probability - 0.5) * 2
         return round(float(confidence), 3)
 
@@ -112,10 +131,14 @@ class RiskPredictor:
         else:
             raise TypeError("Features must be a dictionary or pandas DataFrame.")
 
+        # Apply the same scaling that was fit on the training data
         X = self.scaler.transform(df)
 
+        # Isolation Forest: predict() gives -1 for anomaly / 1 for normal;
+        # decision_function() is negative for anomalies (lower = more unusual)
         anomaly_prediction = int(self.isolation_forest.predict(X)[0])
         anomaly_score = float(self.isolation_forest.decision_function(X)[0])
+        # XGBoost: probability of class 1 (stress/crash precursor) for the first row
         crash_probability = float(self.xgboost.predict_proba(X)[0][1])
 
         risk_level = self.get_risk_level(crash_probability)

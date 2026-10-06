@@ -1,3 +1,9 @@
+"""
+Memory collector: every 2 s, records RAM and swap usage to
+data/runtime/memory_detailed_metrics.json and inserts memory % and swap %
+into the memory_metrics table.
+"""
+
 import sys, os
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:

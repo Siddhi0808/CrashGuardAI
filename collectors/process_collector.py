@@ -1,3 +1,10 @@
+"""
+Process collector: every 3 s, counts processes by state (running, sleeping,
+stopped, zombie), totals threads, reads the 1/5/15-minute load average, and
+inserts the summary into system_runtime_info. The top 50 processes by CPU are
+written to data/runtime/process_metrics.json.
+"""
+
 import sys, os
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
@@ -136,6 +143,7 @@ def collect_and_save():
                     indent=4
                 )
 
+            # Load average is unavailable on Windows; record zeros there
             try:
                 load1, load5, load15 = os.getloadavg()
             except (AttributeError, OSError):

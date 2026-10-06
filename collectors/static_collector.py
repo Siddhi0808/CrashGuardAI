@@ -1,3 +1,9 @@
+"""
+One-time host inventory: registers this machine in the hosts table (or reuses
+its existing row by hostname) and records CPU details, disk partitions and
+network interfaces. Run once per machine.
+"""
+
 import sys, os
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
@@ -14,6 +20,7 @@ except ImportError:
 
 
 def get_or_create_host():
+    """Return this machine's host_id, inserting a hosts row on first run (matched by hostname)."""
     hostname = socket.gethostname()
     machine_type = platform.machine()
     os_name = platform.system()

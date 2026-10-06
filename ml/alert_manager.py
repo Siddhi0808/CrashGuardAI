@@ -1,3 +1,11 @@
+"""
+Rule-based alerting on top of RiskPredictor.
+
+Converts a prediction into NORMAL / WARNING / CRITICAL with a message and a
+recommendation, using WARNING_THRESHOLD and CRITICAL_THRESHOLD from
+core/config.py. Run directly to print the alert for the latest database window.
+"""
+
 import sys, os
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
@@ -19,6 +27,13 @@ class AlertManager:
         self.critical_threshold = CRITICAL_THRESHOLD
 
     def generate_alert(self, prediction=None, features=None):
+        """
+        Build an alert dict.
+
+        Uses `prediction` if given; otherwise predicts from `features`, or from
+        the latest database window when neither is given. Falls back to an
+        INFO alert when no prediction can be made.
+        """
         if prediction is None:
             if features is not None:
                 try:
@@ -55,6 +70,7 @@ class AlertManager:
         message = "System operating normally."
         recommendation = "No action required."
 
+        # Probability thresholds take priority; an Isolation Forest anomaly alone raises a WARNING
         if probability >= self.critical_threshold:
             level = "CRITICAL"
             message = "Critical crash risk detected. Immediate action recommended."

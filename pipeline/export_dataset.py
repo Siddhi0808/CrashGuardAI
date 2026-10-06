@@ -1,3 +1,10 @@
+"""
+Export labelled windows from system_feature_windows to CSV for offline training.
+
+Note: writes OUTPUT_FILE relative to the current working directory, not to
+data/dataset.csv, so it never overwrites the curated training dataset.
+"""
+
 import sys, os
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:

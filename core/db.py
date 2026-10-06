@@ -1,4 +1,14 @@
+"""
+PostgreSQL connection helpers.
+
+Each helper opens a fresh connection and always closes it, so callers never
+leak connections. There is no connection pool; at the current write rate
+(a few inserts per second) that is acceptable.
+"""
+
 import psycopg2
+
+# Support both package-style imports (core.config) and legacy root imports (config)
 try:
     from core.config import DB_CONFIG
 except ImportError:
@@ -8,6 +18,9 @@ except ImportError:
 def get_connection():
     """
     Create and return a PostgreSQL connection.
+
+    connect_timeout=3 makes collectors fail fast instead of hanging
+    when the database is down.
     """
     return psycopg2.connect(
         host=DB_CONFIG["host"],
@@ -21,7 +34,11 @@ def get_connection():
 
 def execute_query(query, values=None):
     """
-    Execute insert/update queries safely.
+    Execute an INSERT/UPDATE/DELETE in its own transaction.
+
+    Values are passed separately (`%s` placeholders), so psycopg2 escapes
+    them and they cannot inject SQL. On failure the transaction is rolled
+    back and the error is re-raised to the caller.
     """
     conn = None
     cursor = None
@@ -44,7 +61,10 @@ def execute_query(query, values=None):
 
 def fetch_query(query, values=None):
     """
-    Execute select queries safely.
+    Execute a SELECT and return all rows as a list of tuples.
+
+    Unlike execute_query, errors are printed and None is returned, so
+    callers must check for None.
     """
     conn = None
     cursor = None

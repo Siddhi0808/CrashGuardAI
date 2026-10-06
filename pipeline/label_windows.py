@@ -1,3 +1,12 @@
+"""
+Event-based window labelling.
+
+A window is labelled 1 (crash precursor) if it ends within
+PREDICTION_WINDOW_MINUTES before a CRASH or MANUAL_TEST_CRASH event in
+system_events; otherwise 0. Labels come from independent events, not from the
+features, which avoids target leakage. Only rows whose label changes are updated.
+"""
+
 import sys, os
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
@@ -61,6 +70,7 @@ def label_windows():
                     minutes=PREDICTION_WINDOW_MINUTES
                 )
 
+                # Windows ending in [crash - 5 min, crash) are positives
                 mask = (
                     (windows["end_time"] >= start_time) &
                     (windows["end_time"] < crash_time)

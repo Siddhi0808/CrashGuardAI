@@ -1,3 +1,12 @@
+"""
+CPU collector: every ~2 s (1 s sampling + 1 s sleep), records total/user/system/idle
+CPU %, per-core load and context switches to data/runtime/cpu_detailed_metrics.json
+and inserts total CPU % into the cpu_metrics table.
+
+Note: "temperature" and the frequency fallback are fixed placeholder values,
+not sensor readings (psutil cannot read these on Apple Silicon).
+"""
+
 import sys, os
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
@@ -47,8 +56,10 @@ def collect_cpu_details():
 
         try:
 
+            # Blocks for 1 s to measure the CPU time split over that interval
             cpu_times = psutil.cpu_times_percent(interval=1)
 
+            # Non-blocking: overall CPU % since the previous cpu_percent() call
             cpu_usage = psutil.cpu_percent(interval=None)
 
             cpu_metrics = {

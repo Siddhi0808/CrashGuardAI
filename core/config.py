@@ -1,6 +1,16 @@
+"""
+Central configuration for CrashGuard AI.
+
+Every module imports paths, database settings, the ML feature list and the
+alert thresholds from here, so changing a value in this file changes it
+everywhere. Database settings can be overridden with environment variables
+(DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD), which is how Docker
+Compose points the app at the `db` container.
+"""
+
 import os
 
-# Base paths
+# Base paths (resolved from this file, so they work from any working directory)
 CORE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(CORE_DIR)
 
@@ -47,6 +57,10 @@ ANOMALY_TABLE = "anomaly_history"
 # Machine Learning Configuration
 # ==========================================================
 
+# The 29 window features the models are trained on. The ORDER matters: the
+# scaler and both models expect columns in exactly this order, and every
+# feature builder (web/app.py, scripts/collect_live_physical_data.py,
+# pipeline/window_builder.py) produces values under these names.
 FEATURE_COLUMNS = [
     "cpu_avg",
     "cpu_max",
@@ -90,5 +104,7 @@ TARGET_COLUMN = "crash_label"
 # Alert Thresholds
 # ==========================================================
 
+# Crash-probability cut-offs used by ml/alert_manager.py.
+# Note: RiskPredictor.get_risk_level() uses its own buckets (0.4 / 0.7 / 0.9).
 WARNING_THRESHOLD = 0.50
 CRITICAL_THRESHOLD = 0.80

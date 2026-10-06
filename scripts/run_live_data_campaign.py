@@ -61,9 +61,9 @@ def stress_memory(duration_sec, target_mb=4000):
     """
     print(f"Allocating ~{target_mb}MB in real RAM...")
     data = []
-    chunk = b'x' * (10 * 1024 * 1024) # 10MB
     for _ in range(target_mb // 10):
-        data.append(chunk)
+        # Build a new 10MB object each time; appending one shared object would only hold 10MB total
+        data.append(b'x' * (10 * 1024 * 1024))
         time.sleep(0.05)
     print("Memory allocated. Holding pressure...")
     time.sleep(max(1, duration_sec - 10))

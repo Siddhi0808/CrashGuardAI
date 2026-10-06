@@ -1,3 +1,12 @@
+"""
+Rolling-window builder.
+
+Every WINDOW_STEP seconds, takes the latest WINDOW_SIZE rows of
+model_training_features and stores their statistics (mean, max, min, std,
+range, variance, trend) as one row of system_feature_windows. With the
+scheduler's 5 s cadence, 60 rows cover roughly 5 minutes.
+"""
+
 import sys, os
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
@@ -19,6 +28,7 @@ WINDOW_STEP = 30
 
 
 def calculate_trend(series):
+    """Slope of a least-squares line through the series (change per sample); gaps are forward/back filled."""
 
     series = pd.Series(series).ffill().bfill()
 
@@ -33,6 +43,7 @@ def calculate_trend(series):
 
 
 def safe_std(series):
+    """Sample standard deviation, with NaN (e.g. a single value) replaced by 0.0."""
 
     value = float(series.std())
 
@@ -43,6 +54,7 @@ def safe_std(series):
 
 
 def safe_variance(series):
+    """Sample variance, with NaN replaced by 0.0."""
 
     value = float(series.var())
 
@@ -53,6 +65,7 @@ def safe_variance(series):
 
 
 def build_window():
+    """Compute and store one window; skips if fewer than WINDOW_SIZE rows exist or the window was already stored."""
 
     conn = None
     cur = None
@@ -83,6 +96,7 @@ def build_window():
             print(f"Waiting for {WINDOW_SIZE} samples... ({len(df)}/{WINDOW_SIZE})")
             return
 
+        # Query returned newest first; restore oldest -> newest so the trend slope has the right sign
         df = df.sort_values("collected_at").reset_index(drop=True)
 
         start_time = df.iloc[0]["collected_at"]
@@ -156,7 +170,7 @@ def build_window():
             float(running.mean()),
             float(threads.mean()),
 
-            0.0
+            0.0  # swap_avg placeholder (swap is not collected into the feature table)
         )
 
         cur.execute(

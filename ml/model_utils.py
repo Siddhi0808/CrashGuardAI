@@ -1,3 +1,11 @@
+"""
+Save/load helpers for the trained model artifacts in models/.
+
+Loaded models are memoised in _model_cache so each file is read from disk
+once per process. A running server keeps using the cached models after a
+retrain until it is restarted or clear_cache() is called.
+"""
+
 import sys, os
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:

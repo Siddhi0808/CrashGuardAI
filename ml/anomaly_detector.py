@@ -1,3 +1,11 @@
+"""
+Standalone anomaly-detection loop.
+
+Every 5 seconds: read the newest window from system_feature_windows, score it
+with the Isolation Forest, store the result in anomaly_history, and write
+data/runtime/anomaly_results.json. Runs until interrupted.
+"""
+
 import sys, os
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
@@ -42,6 +50,7 @@ while True:
         time.sleep(5)
         continue
 
+    # Single-host setup: all rows are attributed to host 1
     host_id = 1
 
     # Scale features

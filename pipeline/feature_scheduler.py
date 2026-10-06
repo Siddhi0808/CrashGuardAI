@@ -1,3 +1,9 @@
+"""
+Runs feature_builder.build_training_features() every COLLECTION_INTERVAL
+seconds. The sleep subtracts the time the build took, so snapshots stay on a
+steady 5-second cadence.
+"""
+
 import sys, os
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
@@ -44,6 +50,7 @@ def main():
 
             print(f"[Scheduler] Error: {e}")
 
+        # Sleep only for the remainder of the interval so the period stays fixed
         elapsed = time.time() - start_time
 
         sleep_time = max(0, COLLECTION_INTERVAL - elapsed)

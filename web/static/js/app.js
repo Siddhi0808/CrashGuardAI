@@ -1,3 +1,13 @@
+// Escape text that originates from process names before inserting it as HTML
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     initCharts();
 
@@ -32,6 +42,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // 2. Refresh Metrics Telemetry
+    // Fetches /api/metrics and updates every card, chart and table on the page.
+    // Errors are logged to the console and the next poll simply tries again.
     async function updateMetrics() {
         try {
             const response = await fetch('/api/metrics');
@@ -48,6 +60,8 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('ov-proc-count').innerText = data.process_count;
             
             // Center Banner Crash Risk
+            // crash_risk_score is the blended 0-100 score; the label prefers the
+            // model's risk level and falls back to score bands when ml_prediction is null
             const riskVal = data.crash_risk_score;
             document.getElementById('ov-risk').innerText = riskVal.toFixed(1);
             const crashLbl = document.getElementById('crash-status-lbl');
@@ -147,8 +161,8 @@ document.addEventListener("DOMContentLoaded", () => {
                         div.className = `suggestion-item ${item.level}`;
                         div.innerHTML = `
                             <div class="suggest-info">
-                                <h4><i class="fa-brands ${item.icon || 'fa-chrome'}"></i> ${item.title}</h4>
-                                <p>${item.description}</p>
+                                <h4><i class="fa-brands ${item.icon || 'fa-chrome'}"></i> ${escapeHtml(item.title)}</h4>
+                                <p>${escapeHtml(item.description)}</p>
                                 <small>Impact: <strong>${item.impact}</strong> | PID: <code>${item.pid}</code></small>
                             </div>
                         `;
@@ -184,8 +198,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     const statusClass = proc.status === 'running' ? 'proc-running' : 'proc-sleeping';
                     tr.innerHTML = `
                         <td>${proc.pid}</td>
-                        <td><strong>${proc.name}</strong></td>
-                        <td><span class="status-tag ${statusClass}">${proc.status}</span></td>
+                        <td><strong>${escapeHtml(proc.name)}</strong></td>
+                        <td><span class="status-tag ${statusClass}">${escapeHtml(proc.status)}</span></td>
                         <td>${proc.cpu_percent.toFixed(1)}%</td>
                         <td>${proc.memory_percent.toFixed(1)}%</td>
                         <td>${proc.memory_mb.toFixed(1)} MB</td>
@@ -199,6 +213,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // Load once immediately, then poll every 2 seconds
     updateMetrics();
     setInterval(updateMetrics, 2000);
 });

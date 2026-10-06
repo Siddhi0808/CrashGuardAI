@@ -1,3 +1,9 @@
+"""
+Writes a one-time static system snapshot (OS, uptime, CPU, RAM, disk) to
+data/runtime/system_static_info.json. Does not touch the database.
+The "temperature" value is a fixed placeholder, not a sensor reading.
+"""
+
 import sys, os
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:

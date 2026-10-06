@@ -1,3 +1,14 @@
+"""
+Train the CrashGuard AI models.
+
+Pipeline: load windows (PostgreSQL system_feature_windows first, falling back
+to data/dataset.csv) -> drop duplicates/NaNs -> chronological 80/20 split ->
+StandardScaler (fit on train only) -> IsolationForest + XGBClassifier ->
+print test metrics and feature importance -> save all three to models/.
+
+Runs top to bottom on import; use `python3 train_model.py` from the project root.
+"""
+
 import sys, os
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
@@ -49,6 +60,7 @@ try:
         {",".join(FEATURE_COLUMNS)},
         {TARGET_COLUMN}
     FROM {WINDOW_TABLE}
+    ORDER BY end_time
     """
 
     df = pd.read_sql(query, conn)
@@ -109,6 +121,9 @@ if y.nunique() < 2:
 
 print("\nPartitioning dataset (Chronological 80/20 Temporal Split)...")
 
+# Positional split: rows are time-ordered, so the first 80% is the past and the
+# last 20% is the future. A random split would leak, because consecutive windows
+# share most of their samples.
 split_idx = int(len(df) * 0.80)
 X_train, X_test = X.iloc[:split_idx], X.iloc[split_idx:]
 y_train, y_test = y.iloc[:split_idx], y.iloc[split_idx:]
@@ -138,6 +153,7 @@ print("✓ Scaler trained (leakage-free)")
 
 print("\nTraining Isolation Forest...")
 
+# contamination = expected share of anomalies; it sets the score cut-off for predict()
 iso = IsolationForest(
     n_estimators=200,
     contamination=0.08,
@@ -158,7 +174,9 @@ print("✓ Isolation Forest trained")
 negative = (y_train == 0).sum()
 positive = (y_train == 1).sum()
 
-# Calibrated positive weight to balance precision and recall realistically
+# Positive-class weight for XGBoost: 0.45 x (negatives / positives), clamped to
+# [1.5, 4.0]. The full ratio would maximise recall; damping it trades some
+# recall for fewer false alarms. max(1, positive) avoids division by zero.
 scale_weight = min(4.0, max(1.5, (negative / max(1, positive)) * 0.45))
 
 print(f"\nCalibrated Scale Positive Weight : {scale_weight:.2f}")
@@ -198,6 +216,7 @@ print("✓ XGBoost trained")
 
 print("\nEvaluating on Unseen Temporal Test Split...\n")
 
+# predict() uses the default 0.5 threshold; ROC-AUC uses the raw probabilities
 predictions = xgb.predict(X_test_scaled)
 probabilities = xgb.predict_proba(X_test_scaled)[:, 1]
 

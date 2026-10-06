@@ -148,7 +148,7 @@ ai-based-system-monitoring/
 │   ├── feature_scheduler.py      # Runs feature_builder.py on a fixed interval
 │   ├── window_builder.py         # Builds rolling statistical windows (60 samples)
 │   ├── label_windows.py          # Labels windows as crash-precursors from crash events
-│   └── export_dataset.py         # Exports labeled windows to data/dataset.csv
+│   └── export_dataset.py         # Exports labeled windows to ./dataset.csv (current directory)
 │
 ├── ml/                           # Machine learning models, training & inference
 │   ├── train_model.py            # Trains StandardScaler, IsolationForest, and XGBoost
@@ -217,7 +217,7 @@ ai-based-system-monitoring/
 
 | Stage | Details |
 |---|---|
-| **Dataset generation** | Built from real collected telemetry, rolled into 60-sample statistical windows and labeled by proximity to recorded crash events (`label_windows.py`) |
+| **Dataset generation** | Built from collected telemetry rolled into 60-sample statistical windows. `data/dataset.csv` is labeled per recorded stress session (`scripts/collect_live_physical_data.py --label`); the database path can instead label windows by proximity to recorded crash events (`label_windows.py`) |
 | **Feature engineering** | 29 engineered features per window — average/max/min/std/range/variance/trend for CPU, memory, disk, and process metrics, plus average/std for network in/out, and process/thread averages (full list in `config.py → FEATURE_COLUMNS`) |
 | **Preprocessing** | `StandardScaler` fit on the training features and reused at inference time |
 | **Models trained** | 1) `IsolationForest` (200 estimators, 8% contamination) for unsupervised anomaly detection 2) `XGBClassifier` (150 estimators, max depth 4, learning rate 0.06, subsample 0.8, colsample_bytree 0.8) for supervised crash-probability prediction, with `scale_pos_weight = clamp(0.45 × neg/pos, 1.5, 4.0)` to handle class imbalance (3.23 on the current dataset) |
@@ -275,7 +275,7 @@ pip install -r requirements.txt
 #### 3. Set up PostgreSQL (Optional if training offline on dataset.csv)
 ```bash
 createdb system_monitoring
-psql -d system_monitoring -f database.sql
+psql -d system_monitoring -f data/database.sql
 ```
 Credentials can be configured via environment variables (`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`) or edited in `config.py`.
 
@@ -289,7 +289,7 @@ Trains the `StandardScaler`, `IsolationForest`, and `XGBClassifier` and saves mo
 ```bash
 python3 app.py
 ```
-Open **http://localhost:5001** to view live system vitals, the blended crash-risk score, and process inspection.
+Open **http://localhost:5001** to view live system vitals, the blended crash-risk score, and process inspection. Flask debug mode is off by default; set `FLASK_DEBUG=1` to enable it for local development only.
 
 ---
 
@@ -297,10 +297,10 @@ Open **http://localhost:5001** to view live system vitals, the blended crash-ris
 To stream brand new live physical sensor measurements directly into `dataset.csv`:
 ```bash
 # Interactive guided campaign (idle, multitasking, CPU burn, memory leaks, thread storms):
-python3 run_live_data_campaign.py
+python3 scripts/run_live_data_campaign.py
 
 # Or background streaming during everyday use:
-python3 collect_live_physical_data.py --step 2 --label 0 --tag "daily_work"
+python3 scripts/collect_live_physical_data.py --step 2 --label 0 --tag "daily_work"
 ```
 
 ---
@@ -309,8 +309,8 @@ python3 collect_live_physical_data.py --step 2 --label 0 --tag "daily_work"
 
 1. **Start monitoring** — Launch `app.py` or run `docker compose up -d` to view real-time telemetry.
 2. **View the dashboard** — Run `python3 app.py` and open the browser to see live CPU, memory, disk, network, and process stats update automatically, along with a live weighted crash-risk score.
-3. **Get crash predictions** — Once models are trained, run `python3 risk_predictor.py` (or integrate `RiskPredictor` into a service) to get the ML-based crash probability, risk level, and anomaly flag for the latest feature window.
-4. **Check alerts** — Run `python3 alert_manager.py` to see the current alert level (NORMAL / WARNING / CRITICAL) with a human-readable message and recommended action.
+3. **Get crash predictions** — Once models are trained, run `python3 ml/risk_predictor.py` (or integrate `RiskPredictor` into a service) to get the ML-based crash probability, risk level, and anomaly flag for the latest feature window.
+4. **Check alerts** — Run `python3 ml/alert_manager.py` to see the current alert level (NORMAL / WARNING / CRITICAL) with a human-readable message and recommended action.
 5. **Interpret results**:
    - **Risk level LOW/NORMAL** — system operating within normal bounds.
    - **MEDIUM/WARNING** — resource strain increasing; monitor closely.
